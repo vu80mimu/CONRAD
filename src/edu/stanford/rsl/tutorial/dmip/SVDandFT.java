@@ -143,11 +143,10 @@ public class SVDandFT {
 		int newRank = rank - rankDeficiency;
 		
 		
-		
 		//Compute mean of remaining singular values
 		double mean = 0;
 		for(int i = 0; i<newRank; i++){
-			mean += svd.getreciprocalS().getElement(i, i);
+			mean += svd.getS().getElement(i, i);
 		}
 		mean /= newRank;
 		
