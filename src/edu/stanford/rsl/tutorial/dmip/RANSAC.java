@@ -61,7 +61,7 @@ public class RANSAC {
 				a.setRowValue(n, points.getRow(indexes.get(n)));
 			}
 			
-			SimpleVector lineParams= new SimpleVector(mn);
+			SimpleVector lineParams= fitline(a);
 			// TODO: estimate the line parameters for the selected points
 			
 			
@@ -69,7 +69,7 @@ public class RANSAC {
 			
 			// Calculate the error of the estimated line
 			// update the error and the parameters, if the current line has a smaller error
-			double cur_err = 0.0;
+			double cur_err = lineError(lineParams, points);
 			// TODO: calculate the error of the current line
 			
 			
@@ -101,7 +101,7 @@ public class RANSAC {
 		m.fill(1);
 		
 		for(int i = 0; i < points.getRows(); i++){
-			m.setElementValue(i, 0, points.getElement(i, 0));
+			m.setElementValue(i, 0, points.getElement(i, 0)); // set the first column to input x data values 
 			b.setElementValue(i, points.getElement(i, 1));
 		}
 		
@@ -110,6 +110,10 @@ public class RANSAC {
 		
 		// Calculate the parameters using the Pseudo-Inverse
 		// TODO: calculate the line parameters, write them in x_result
+		// write y = m * x + b to matrix vector multiplication m * x + b * 1 ; y  = m * param
+		SimpleMatrix m_inverse = m.inverse(InversionType.INVERT_SVD);
+		x_result = SimpleOperators.multiply(m_inverse,b);
+		
 		
 		return x_result;
 	}
@@ -128,23 +132,34 @@ public class RANSAC {
 		double thresh = 0.2;
 		
 		// TODO: line parameters
-		
+		double m = line_params.getElement(0);
+		double c = line_params.getElement(1);
 		
 		// TODO: get some point on the line
+		SimpleVector point = new SimpleVector(1,m*1+c);
 		
+		// TODO: calculate normal vector of the line. (x,y) = (-y, x)
+		SimpleVector n = new SimpleVector(-m,1);
+		n = n.normalizedL2();
 		
-		// TODO: calculate normal vector of the line
-		
-		
-		// TODO: calculate distance line to origin
-		
-		
+		// TODO: calculate distance line to origin.   
+		double d = SimpleOperators.multiplyInnerProd(point, n);
+		double error = 0;
 		// TODO: calculate the distance for each point to the line
 		// TODO: check if the distance is higher than the threshold
-		
-		
+		for (int i = 0; i < points.getRows(); i++){
+			//Distance to origin
+			double dp = Math.abs(SimpleOperators.multiplyInnerProd(points.getRow(i), n)- d);
+			
+			//Compare
+			if(dp > thresh){
+				error++;
+			}
+		}
+		//normalize the error to the number of data points
+		error /= points.getRows();
 		// TODO: return the error
-		return 0;
+		return error;
 	}
 	
 	
