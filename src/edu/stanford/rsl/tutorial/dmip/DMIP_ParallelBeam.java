@@ -40,7 +40,7 @@ public class DMIP_ParallelBeam {
 	 * @param maxS the detector size in [mm]
 	 * @param deltaS the detector element size in [mm]
 	 */
-	
+	// simulating the ct scanner 
 	public Grid2D projectRayDriven(Grid2D grid, double maxTheta, double deltaTheta, double maxS, double deltaS) {
 		
 		int maxSIndex = (int) (maxS / deltaS + 1);
@@ -206,6 +206,7 @@ public class DMIP_ParallelBeam {
 	 * @param sinogram  a line of the sinogram
 	 *  
 	 */
+	// Grid1D sinogram = only one line
 	public Grid1D rampFiltering(Grid1D sinogram, RampFilterType filter){
 		
 		double deltaS = 1;
@@ -216,14 +217,42 @@ public class DMIP_ParallelBeam {
 		
 		int paddedSize = ramp.getSize()[0];
 		
+		// filter is repeated periodically for discrete image values 
 		if(filter == RampFilterType.RAMLAK)
 		{
-			// TODO: implement the ram-lak filter in the spatial domain 
-			
+			// TODO: implement the ram-lak filter in the spatial domain. Not as in the slides but shifted to 0 
+			ramp.setAtIndex(0, 0.25f);
+			final float odd = -1.f/(float)Math.pow(Math.PI, 2);
+			for(int i = 1; i < paddedSize/2;i++){
+				// if index is odd
+				if(1 ==(i % 2)){
+					// change the formula in order to calculate the constant parts in front of the loop to save calculation effort
+					ramp.setAtIndex(i, odd/(float)Math.pow(i, 2));
+				}
+			}
+			for(int i = paddedSize/2; i < paddedSize; i++){
+				// shift the index in order to get the increasing values for the right side
+				final float tmp = paddedSize - i;
+				if(1 ==(i % 2)){
+					
+					ramp.setAtIndex(i, odd/(float)Math.pow(tmp, 2));
+				}
+			}
 		}
 		else if(filter == RampFilterType.SHEPPLOGAN)
 		{
 			// TODO: implement the Shepp-Logan filter in the spatial domain
+			ramp.setAtIndex(0, 2f / (float) Math.pow(Math.PI, 2) );
+			for(int i = 1; i < paddedSize/2;i++){
+					// change the formula in order to calculate the constant parts in front of the loop to save calculation effort
+					ramp.setAtIndex(i, (float)(-2.0f /((float)Math.pow(Math.PI, 2)*(4*Math.pow(i, 2)-1.0) ) ));
+			}
+			for(int i = paddedSize/2; i < paddedSize; i++){
+				// shift the index in order to get the increasing values for the right side
+				final float tmp = paddedSize - i;
+					
+				ramp.setAtIndex(i, (float)(-2.0f /((float)Math.pow(Math.PI, 2)*(4*Math.pow(tmp, 2)-1.0) ) ));
+			}
 			
 		}
 		else
@@ -232,19 +261,22 @@ public class DMIP_ParallelBeam {
 			return sinogram;
 		}
 		
+		// Fast Convolution algorithm
 		// TODO: Transform ramp filter into frequency domain
-		
+		ramp.transformForward();
 		
 		Grid1DComplex sinogramF = new Grid1DComplex(sinogram,true);
 		// TODO: Transform the input sinogram signal into the frequency domain
-		
+		sinogramF.transformForward();
 		
 		// TODO: Multiply the ramp filter with the transformed sinogram
-		
+		for(int p = 0; p < sinogramF.getSize()[0];p++){
+			sinogramF.multiplyAtIndex(p, ramp.getRealAtIndex(p) ,ramp.getImagAtIndex(p));
+		}
 		
 		// TODO: Backtransformation
-
-		
+		sinogramF.transformInverse();
+	
 		// Crop the image to its initial size
 		Grid1D ret = new Grid1D(sinogram);
 		ret = sinogramF.getRealSubGrid(0, sinogram.getSize()[0]);
@@ -273,14 +305,15 @@ public class DMIP_ParallelBeam {
 		// size of a detector Element [mm]
 		float detectorSpacing = 1.0f;	
 		// filterType: NONE, RAMLAK, SHEPPLOGAN
-		RampFilterType filter = RampFilterType.NONE;				
+		RampFilterType filter = RampFilterType.SHEPPLOGAN;	//no filtering for RampFilterType.NONE			
 		
 		// 1. Create the Shepp Logan Phantom
 		SheppLogan sheppLoganPhantom = new SheppLogan(phantomSize);
 		sheppLoganPhantom.show();
 		
 		// 2. Acquire forward projection images with a parallel projector
-		Grid2D sinogram = parallel.projectRayDriven(sheppLoganPhantom, angularRange, angularStepSize, detectorSize, detectorSpacing);
+		//TODO reduce the double projection at 0 and 180
+		Grid2D sinogram = parallel.projectRayDriven(sheppLoganPhantom, angularRange-angularStepSize, angularStepSize, detectorSize, detectorSpacing);
 		sinogram.show("The Sinogram");
 		Grid2D filteredSinogram = new Grid2D(sinogram);
 		
