@@ -223,6 +223,9 @@ public class SVDandFT {
 	public static void optimizationProblem2(SimpleMatrix b)
 	{
 		System.out.println("Optimization Problem 2");
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		//Optimization problem II
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		// Estimate the matrix A in R^{2,2} such that for the following vectors
 		// the optimization problem gets solved:
 		// sum_{i=1}^{4} b'_{i} A b_{i} and ||A||_{F} = 1
@@ -260,7 +263,6 @@ public class SVDandFT {
 		System.out.println("||A||_F = " + normF);
 		
 		//check solution
-		
 		SimpleVector temp = SimpleOperators.multiply(M, a);
 		double result = SimpleOperators.multiplyInnerProd(a, temp);
 		System.out.println("Minimized error: " + result);
@@ -294,7 +296,7 @@ public class SVDandFT {
 		
 		//output images
 		Grid3D imageRanks = new Grid3D(image.getWidth(), image.getHeight(), rank);
-	
+		
 		//Create Rank k approximations
 		for(int k = 0; k < rank; k++)
 		{
@@ -328,7 +330,7 @@ public class SVDandFT {
 		
 		
 		//Direct estimation of rank K 
-		SimpleMatrix usK = SimpleOperators.multiplyMatrixProd(svd.getU().getSubMatrix(0,0,svd.getU().getRows(),rank),svd.getreciprocalS().getSubMatrix(0, 0,rank,rank));
+		SimpleMatrix usK = SimpleOperators.multiplyMatrixProd(svd.getU().getSubMatrix(0,0,svd.getU().getRows(),rank),svd.getS().getSubMatrix(0, 0,rank,rank));
 		SimpleMatrix IapproxK = SimpleOperators.multiplyMatrixProd(usK, svd.getV().getSubMatrix(0, 0,svd.getV().getRows(),rank).transposed());
 		//Transfer back to grid
 		Grid2D imageRankK = new Grid2D(image.getWidth(), image.getHeight());

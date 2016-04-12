@@ -81,7 +81,6 @@ public class Intro {
 		}
 		
 		conv.convolve(ip, kernel, kw, kh);
-			
 		
 		//write an image to disk, check the supported output formats
 		String outFilename ="D:/02_lectures/DMIP/exercises/2014/matlab_intro/mr12out.tif";
@@ -131,6 +130,8 @@ public class Intro {
 		//create matrix M 3x3  1 2 3; 4 5 6; 7 8 9
 		SimpleMatrix M = new SimpleMatrix(3,3);
 		M.setColValue(0, new SimpleVector(1,4,7));
+		M.setColValue(1, new SimpleVector(2,5,8));
+		M.setColValue(2, new SimpleVector(3, 6, 9));
 		System.out.println("M = " + M.toString());
 		
 		//determinant of M
@@ -214,7 +215,6 @@ public class Intro {
 		}
 		double maxM = maxVec.max();
 		System.out.println("Max(M) = " + maxM);
-		
 		
 		
 		//Norms
