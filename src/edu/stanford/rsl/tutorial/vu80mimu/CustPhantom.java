@@ -2,6 +2,8 @@ package edu.stanford.rsl.tutorial.vu80mimu;
 
 import ij.ImageJ;
 import edu.stanford.rsl.conrad.data.numeric.Grid2D;
+import edu.stanford.rsl.conrad.data.numeric.NumericGrid;
+import edu.stanford.rsl.conrad.data.numeric.NumericPointwiseOperators;
 
 public class CustPhantom extends Grid2D{
 
@@ -12,40 +14,69 @@ public class CustPhantom extends Grid2D{
 		
 		
 		// TODO Auto-generated constructor stub
-		
-		
-		this.createRect((int)(width/4), (int)(height/8), (int)(width/2), (int)(height/16) );
-		this.createCircle(50, 50, 50);
-		this.createEllipse(50,20 , 100, 100);
-		//this.createRect(50, 50, 50, 50);
-		this.setAtIndex(50, 50, (float)0.5);
-		
+		if (width >= height){
+			this.createEllipse((int)((width*0.4)),(int)(height*0.3), (int)(width/2), (int)(height/2),(float)0.8);
+			this.createRect((int)(width*0.1), (int)(height*0.4), (int)(width/2-(width*0.1)/2), (int)(height*0.3),(float) 0.2 );
+			this.createCircle(10, width/4, height/2, (float)1);
+			this.createCircle(10, width-width/4, height/2, (float)1);
+			this.createCircle((int)(3*height/16),(int)(3*width/4), (int) (3*height/4),  (float)0.5);
+		}else{
+			this.createEllipse((int)((width*0.3)),(int)(height*0.4), (int)(width/2), (int)(height/2),(float)0.8);
+			this.createRect((int)(width*0.1), (int)(height*0.4), (int)(width/2-(width*0.1)/2), (int)((height/2)-((height*0.4)/2)),(float) 0.2 );
+			this.createCircle(10, width/4, height/2, (float)1);
+			this.createCircle(10, width-width/4, height/2, (float)1);
+			this.createCircle((int)(3*width/16),(int)(3*width/4), (int) (height/4),  (float)0.5);
+		}
+
 	}
-	public void createEllipse(int a,int b,int centerX, int centerY){
+	public void createEllipse(int a,int b,int centerX, int centerY, float value){
+
+		
 		int originX = centerX - a;
 		int originY = centerY - b;
 		for(int i = 0; i < 2*a; i++){
 			for(int j = 0; j < 2*b; j++){
-				if((Math.pow((double)(i-a),2)/Math.pow(a, 2)+Math.pow((double)(j-b),2))/Math.pow(b, 2) <= 1){
-					this.setAtIndex(originX+i, originY+j, (float)0.7);
+
+				if(Math.pow((double)(i-a),2)/Math.pow((double) a, 2)+Math.pow((double)(j-b),2)/Math.pow((double)b, 2) < 1){
+					if(this.getAtIndex(originX+i, originY+j) != (float)0.0){
+						float adjustedIntensity = (this.getAtIndex(originX+i, originY+j) + value)/2;
+						this.setAtIndex(originX+i, originY+j, adjustedIntensity);
+					}else{
+						this.setAtIndex(originX+i, originY+j, value);
+					}
+					
 				}
 			}
 		}
 	}
-	public void createRect(int w, int h, int originX, int originY){
-		for(int j = originX; j < originX + w; j++){
-			for(int i = originY; i < originY + h; i++){
-				this.setAtIndex(j,i,(float) 0.3);
+	public void createRect(int w, int h, int originX, int originY, float value){
+		for(int j = 0; j < w; j++){
+			for(int i = 0; i < h; i++){
+				if(this.getAtIndex(originX+j, originY+i) != (float) 0.0){
+					float adjustedIntensity = (this.getAtIndex(originX+j, originY+i) + value)/2;
+					this.setAtIndex(j+originX,i+originY, adjustedIntensity);
+				}else{
+					this.setAtIndex(j+originX,i+originY, value);
+				}
+
 			}
 		}
 	}
-	public void createCircle(int r, int centerX, int centerY){
+	public void createCircle(int r, int centerX, int centerY, float value){
+		assert centerX > r : "Ellipse Size exeeds image dimensions. Please adjust centerX and/or Radius";
+		assert centerY > r : "Ellipse Size exeeds image dimensions. Please adjust centerX and/or Radius";
 		int originX = centerX - r;
 		int originY = centerY - r;
 		for(int i = 0; i < 2*r; i++){
 			for(int j = 0; j < 2*r; j++){
-				if((Math.pow((double)(i-r),2)+Math.pow((double)(j-r),2)) <= Math.pow(r, 2)){
-					this.setAtIndex(originX+i, originY+j, (float)0.7);
+				if((Math.pow((double)(i-r),2)+Math.pow((double)(j-r),2)) < Math.pow((double)r, 2)){
+					if(this.getAtIndex(originX+i, originY+j) != (float)0.0){
+						float adjustedIntensity = (this.getAtIndex(originX+i, originY+j) + value)/2;
+						this.setAtIndex(originX+i, originY+j, adjustedIntensity);
+					}else{
+						this.setAtIndex(originX+i, originY+j, value);
+					}
+
 				}
 			}
 		}
@@ -53,9 +84,35 @@ public class CustPhantom extends Grid2D{
 	public static void main(String args[]){
 		new ImageJ();
 		CustPhantom phantom = new CustPhantom(256,256);
-		phantom.show();
-	}
+
+		Grid2D image = new Grid2D(256,256);
+		for(int j = 0; j < 50; j++){
+			for(int i = 0; i < 25; i++){
+				image.setAtIndex(j+image.getWidth()/2,i+ image.getHeight()/2, (float)0.1);
+			}
+		}
+		
+		
+		//Grid2D add = new Grid2D(image);
+		//NumericPointwiseOperators.addedBy(add,phantom);
+		
+		NumericGrid add = NumericPointwiseOperators.addedBy(image, phantom);
+
+		image.show("Bar");
+		phantom.show("Phantom");
+		add.show("Addition");
 	
+	
+		CustPhantom phantom2 = new CustPhantom(200,256);
+		CustPhantom phantom3 = new CustPhantom(256,200);
+	
+		phantom2.show("Phantom2");
+		phantom3.show("Phantom3");
+		
+		NumericGrid add2 = NumericPointwiseOperators.addedBy(phantom3,image );
+		add2.show("Addition2");
+	
+	}
 
 }
 
