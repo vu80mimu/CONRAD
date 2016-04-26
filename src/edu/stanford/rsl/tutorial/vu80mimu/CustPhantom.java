@@ -7,7 +7,7 @@ import edu.stanford.rsl.conrad.data.numeric.NumericPointwiseOperators;
 
 public class CustPhantom extends Grid2D{
 
-	public CustPhantom(int width, int height) {
+	public CustPhantom(int width, int height, double[] spacing) {
 		super(width, height);
 		
 		
@@ -27,6 +27,9 @@ public class CustPhantom extends Grid2D{
 			this.createCircle(10, width-width/4, height/2, (float)1);
 			this.createCircle((int)(3*width/16),(int)(3*width/4), (int) (height/4),  (float)0.5);
 		}
+		
+		this.setSpacing(spacing);
+		this.setOrigin(this.getWidth()*spacing[0]/2, this.getHeight()*spacing[1]/2);
 
 	}
 	public void createEllipse(int a,int b,int centerX, int centerY, float value){
@@ -81,9 +84,11 @@ public class CustPhantom extends Grid2D{
 			}
 		}
 	}
+	
 	public static void main(String args[]){
 		new ImageJ();
-		CustPhantom phantom = new CustPhantom(256,256);
+		
+		CustPhantom phantom = new CustPhantom(256,256,new double[]{1.0,1.0});
 
 		Grid2D image = new Grid2D(256,256);
 		for(int j = 0; j < 50; j++){
@@ -103,8 +108,8 @@ public class CustPhantom extends Grid2D{
 		add.show("Addition");
 	
 	
-		CustPhantom phantom2 = new CustPhantom(200,256);
-		CustPhantom phantom3 = new CustPhantom(256,200);
+		CustPhantom phantom2 = new CustPhantom(200,256, new double[]{1.0,1.0});
+		CustPhantom phantom3 = new CustPhantom(256,200, new double[]{1.0,1.0});
 	
 		phantom2.show("Phantom2");
 		phantom3.show("Phantom3");
