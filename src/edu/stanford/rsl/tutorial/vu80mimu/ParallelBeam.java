@@ -2,6 +2,7 @@ package edu.stanford.rsl.tutorial.vu80mimu;
 
 import java.util.ArrayList;
 
+import edu.stanford.rsl.conrad.data.numeric.Grid1D;
 import edu.stanford.rsl.conrad.data.numeric.Grid1DComplex;
 import edu.stanford.rsl.conrad.data.numeric.Grid2D;
 import edu.stanford.rsl.conrad.data.numeric.InterpolationOperators;
@@ -12,6 +13,7 @@ import edu.stanford.rsl.conrad.geometry.transforms.Transform;
 import edu.stanford.rsl.conrad.geometry.transforms.Translation;
 import edu.stanford.rsl.conrad.numerics.SimpleMatrix;
 import edu.stanford.rsl.conrad.numerics.SimpleVector;
+import edu.stanford.rsl.conrad.utils.FFTUtil;
 import edu.stanford.rsl.tutorial.phantoms.SheppLogan;
 import ij.ImageJ;
 
@@ -125,12 +127,15 @@ public class ParallelBeam {
 		filtSino.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[1]});
 		filtSino.setOrigin(-(filtSino.getSize()[0]*filtSino.getSpacing()[0]/2),-( filtSino.getSize()[1]*filtSino.getSpacing()[1]/2));
 		// calculate frequency spacing
-		Grid1DComplex ramp = new Grid1DComplex(sino.getSize()[0]);
+		Grid1D ramp = new Grid1D(FFTUtil.getNextPowerOfTwo(sino.getSize()[0]));
 		int k = ramp.getSize()[0];
 		double freqSpacing = 1/(sino.getSpacing()[0]*k);
-		for (int i = 0; i< k; i++){
+		for (int i = 0; i< k/2; i++){
 			ramp.setAtIndex(i, (float)Math.abs(2.0f*Math.PI*freqSpacing*i));
+			ramp.setAtIndex(k-i-1, (float)Math.abs(2.0f*Math.PI*freqSpacing*i));
 		}
+		ramp.show();
+		Grid1DComplex complexRamp = new Grid1DComplex(ramp);
 		// FFT of one line of the sino
 		for(int i = 0; i < sino.getSize()[1]; i++){
 			Grid1DComplex complexRow = new Grid1DComplex(sino.getSubGrid(i));
@@ -138,13 +143,13 @@ public class ParallelBeam {
 
 			// multiply with ramp filter
 			for(int j = 0 ; j < k; j++){
-				complexRow.multiplyAtIndex(j, ramp.getAtIndex(j));
+				complexRow.multiplyAtIndex(j, complexRamp.getRealAtIndex(j), complexRamp.getImagAtIndex(j));
 			}
 			
 			complexRow.transformInverse();
 			// write filtered sinogramm into output image
 			for(int j = 0 ; j < k; j++){
-				filtSino.setAtIndex(j, i, complexRow.getAtIndex(j));
+				filtSino.setAtIndex(j, i, complexRow.getRealAtIndex(j));
 			}
 		}
 		
@@ -152,6 +157,51 @@ public class ParallelBeam {
 	return filtSino;	
 	}
 	
+	public static Grid2D ramLakFilter(Grid2D sino){
+		Grid2D filtSino = new Grid2D(sino.getSize()[0],sino.getSize()[1]);
+		filtSino.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[1]});
+		filtSino.setOrigin(-(filtSino.getSize()[0]*filtSino.getSpacing()[0]/2),-( filtSino.getSize()[1]*filtSino.getSpacing()[1]/2));
+		// calculate frequency spacing
+		Grid1D ramLak = new Grid1D(FFTUtil.getNextPowerOfTwo(sino.getSize()[0]));
+		int k = ramLak.getSize()[0];
+		double freqSpacing = 1/(sino.getSpacing()[0]*k);
+		for (int i = 0; i< k/2; i++){
+			if(i == 0){
+				ramLak.setAtIndex(i, 0.25f);
+			}else if(i%2 == 0){
+				// even
+				ramLak.setAtIndex(i, 0.0f);
+				ramLak.setAtIndex(k-i-1, 0.0f);
+			}else{
+				ramLak.setAtIndex(i, (float)(-1/(Math.pow(i, 2)*Math.pow(Math.PI, 2))));
+				ramLak.setAtIndex(k-i-1, (float)(-1/(Math.pow(i, 2)*Math.pow(Math.PI, 2))));
+			}
+
+		}
+		ramLak.show();
+		Grid1DComplex complexRamLak = new Grid1DComplex(ramLak);
+		complexRamLak.transformForward();
+		complexRamLak.show();
+		// FFT of one line of the sino
+		for(int i = 0; i < sino.getSize()[1]; i++){
+			Grid1DComplex complexRow = new Grid1DComplex(sino.getSubGrid(i));
+			complexRow.transformForward();
+
+			// multiply with ramp filter
+			for(int j = 0 ; j < k; j++){
+				complexRow.multiplyAtIndex(j, complexRamLak.getRealAtIndex(j), complexRamLak.getImagAtIndex(j));
+			}
+			
+			complexRow.transformInverse();
+			// write filtered sinogramm into output image
+			for(int j = 0 ; j < k; j++){
+				filtSino.setAtIndex(j, i, complexRow.getRealAtIndex(j));
+			}
+		}
+		
+		
+	return filtSino;	
+	}
 	public static Grid2D filteredBackprojection(Grid2D sino, String filterType){
 		Grid2D imOut = new Grid2D(sino.getSize()[0],sino.getSize()[0]);
 		imOut.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[0]});
@@ -161,6 +211,7 @@ public class ParallelBeam {
 			imOut = rampFilter(sino);
 			break;
 		case "ramLak":
+			imOut = ramLakFilter(sino);
 			break;
 		default:
 			System.err.println("The filter type " + filterType +" is not implemented.");
@@ -183,15 +234,18 @@ public class ParallelBeam {
 		Grid2D sinogramm = p.createSinogram(phantom, 180, new double[] { 1.0, 1.0 }, 365);
 		sinogramm.show("Sinogramm");
 		//perform backprojection without filtering
-		//Grid2D backProj = p.backProject(sinogramm);
-		//backProj.show("Back Projection");
+		Grid2D backProj = p.backProject(sinogramm);
+		backProj.show("Back Projection");
 		
-		Grid2D rampFil = p.rampFilter(sinogramm);
-		rampFil.show("Ramp Filt");
+		//Grid2D rampFil = p.rampFilter(sinogramm);
+		//rampFil.show("Ramp Filt");
 		
 		//perform filteredBackprojection
 		Grid2D filtBackProj = p.filteredBackprojection(sinogramm, "ramp");
 		filtBackProj.show("Filtered Backprojection");
+		
+		Grid2D filtBackProjR = p.filteredBackprojection(sinogramm, "ramLak");
+		filtBackProjR.show("Filtered Backprojection with RamLak");
 	}
 
 }
