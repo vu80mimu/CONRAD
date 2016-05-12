@@ -162,24 +162,25 @@ public class ParallelBeam {
 		filtSino.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[1]});
 		filtSino.setOrigin(-(filtSino.getSize()[0]*filtSino.getSpacing()[0]/2),-( filtSino.getSize()[1]*filtSino.getSpacing()[1]/2));
 		// calculate frequency spacing
-		Grid1D ramLak = new Grid1D(FFTUtil.getNextPowerOfTwo(sino.getSize()[0]));
-		int k = ramLak.getSize()[0];
-		double freqSpacing = 1/(sino.getSpacing()[0]*k);
-		for (int i = 0; i< k/2; i++){
+		Grid1D ramLak = new Grid1D(sino.getSize()[0]);
+		Grid1DComplex complexRamLak = new Grid1DComplex(ramLak);
+		int k = complexRamLak.getSize()[0];
+		//double freqSpacing = 1/(sino.getSpacing()[0]*k);
+		for (int i = 0; i<= k/2; i++){
 			if(i == 0){
-				ramLak.setAtIndex(i, 0.25f);
+				complexRamLak.setAtIndex(i, 0.25f);
 			}else if(i%2 == 0){
 				// even
-				ramLak.setAtIndex(i, 0.0f);
-				ramLak.setAtIndex(k-i-1, 0.0f);
+				complexRamLak.setAtIndex(i, 0.0f);
+				complexRamLak.setAtIndex(k-i, 0.0f);
 			}else{
-				ramLak.setAtIndex(i, (float)(-1/(Math.pow(i, 2)*Math.pow(Math.PI, 2))));
-				ramLak.setAtIndex(k-i-1, (float)(-1/(Math.pow(i, 2)*Math.pow(Math.PI, 2))));
+				complexRamLak.setAtIndex(i, (float)(-1/(Math.pow(i, 2)*Math.pow(Math.PI, 2))));
+				complexRamLak.setAtIndex(k-i, (float)(-1/(Math.pow(i, 2)*Math.pow(Math.PI, 2))));
 			}
 
 		}
-		ramLak.show();
-		Grid1DComplex complexRamLak = new Grid1DComplex(ramLak);
+		complexRamLak.show();
+		//Grid1DComplex complexRamLak = new Grid1DComplex(ramLak);
 		complexRamLak.transformForward();
 		complexRamLak.show();
 		// FFT of one line of the sino
