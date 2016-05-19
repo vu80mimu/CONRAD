@@ -229,23 +229,23 @@ public class ParallelBeam {
 		//sheppLoganPhantom.show();
 		//Create Phantom
 		CustPhantom phantom = new CustPhantom(200,300 , new double[] { 1.0, 1.0 });
-		ParallelBeam p = new ParallelBeam();
+		//ParallelBeam p = new ParallelBeam();
 		phantom.show();
 		//Create Sinogramm of phantom
-		Grid2D sinogramm = p.createSinogram(phantom, 180, new double[] { 1.0, 1.0 }, 365);
+		Grid2D sinogramm = createSinogram(phantom, 180, new double[] { 1.0, 1.0 }, 365);
 		sinogramm.show("Sinogramm");
 		//perform backprojection without filtering
-		Grid2D backProj = p.backProject(sinogramm);
+		Grid2D backProj = backProject(sinogramm);
 		backProj.show("Back Projection");
 		
 		//Grid2D rampFil = p.rampFilter(sinogramm);
 		//rampFil.show("Ramp Filt");
 		
 		//perform filteredBackprojection
-		Grid2D filtBackProj = p.filteredBackprojection(sinogramm, "ramp");
+		Grid2D filtBackProj = filteredBackprojection(sinogramm, "ramp");
 		filtBackProj.show("Filtered Backprojection");
 		
-		Grid2D filtBackProjR = p.filteredBackprojection(sinogramm, "ramLak");
+		Grid2D filtBackProjR = filteredBackprojection(sinogramm, "ramLak");
 		filtBackProjR.show("Filtered Backprojection with RamLak");
 	}
 
