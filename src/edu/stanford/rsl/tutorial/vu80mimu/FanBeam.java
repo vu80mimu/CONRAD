@@ -46,10 +46,10 @@ public class FanBeam {
 				// calculate s in World coordinates
 				double t = j* spacingDetector[0] - (numDetectorPixels*spacingDetector[0])/2;
 				// define two points on the line through the 3D box
-				PointND p1 = new PointND(cosBeta* dSI, sinBeta*dSI, 0.0d); // 
-				PointND midDetector = new PointND(cosBeta*(dSD - dSI), sinBeta*(dSD -dSI));
+				PointND p1 = new PointND(-sinBeta* dSI, cosBeta*dSI, 0.0d); // 
+				PointND midDetector = new PointND(sinBeta*(dSD - dSI), -cosBeta*(dSD -dSI));
 				
-				PointND p2 = new PointND(midDetector.getCoordinates()[0]-sinBeta*t, midDetector.getCoordinates()[1]+cosBeta*t, 0.0d);
+				PointND p2 = new PointND(midDetector.getCoordinates()[0]+cosBeta*t, midDetector.getCoordinates()[1]+sinBeta*t, 0.0d);
 				// set up line equation
 				StraightLine line = new StraightLine(p1, p2);
 				// compute intersections between bounding box and intersection line.
@@ -75,7 +75,8 @@ public class FanBeam {
 				//intersection points
 				int samplingRate = (int)(length/samplingStepSize);
 				PointND currentPoint = new PointND(start);
-				SimpleVector step = new SimpleVector(line.getDirection().multipliedBy(samplingStepSize));
+				//getDirection returns a non normalized vector
+				SimpleVector step = new SimpleVector(line.getDirection().normalizedL2().multipliedBy(samplingStepSize));
 				// subtract step the first time so that first ray is at the start
 				currentPoint.getAbstractVector().subtract(step);
 				
@@ -84,8 +85,8 @@ public class FanBeam {
 				for(int l = 0; l <= samplingRate; l++){
 					currentPoint.getAbstractVector().add(step);
 					//double[] currentIndex = image.physicalToIndex(currentPoint.get(0), currentPoint.get(1));
-					double currentX = (currentPoint.get(0) / image.getSpacing()[0]) - image.getOrigin()[0];
-					double currentY = (currentPoint.get(1) / image.getSpacing()[1]) - image.getOrigin()[1];
+					double currentX = (currentPoint.get(0) - image.getOrigin()[0]) / image.getSpacing()[0];
+					double currentY = (currentPoint.get(1) - image.getOrigin()[1]) / image.getSpacing()[1];
 					float value = InterpolationOperators.interpolateLinear(image, currentX, currentY);
 					//System.out.println(value);
 					sum += value;
@@ -104,7 +105,7 @@ public class FanBeam {
 		
 		new ImageJ();
 		CustPhantom phantom = new CustPhantom(200,300 , new double[] { 1.0, 1.0 });
-		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 400, 1.0, 180, 200,500 );
+		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 600, 1.0, 180, 500,1000 );
 		phantom.show();
 		fano.show("Fanogramm");
 
