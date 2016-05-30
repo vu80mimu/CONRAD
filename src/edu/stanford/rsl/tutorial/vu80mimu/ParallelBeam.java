@@ -19,12 +19,12 @@ import ij.ImageJ;
 
 public class ParallelBeam {
 	public static Grid2D createSinogram(Grid2D image, int numProjections, double[] spacingDetector, int numDetectorPixels) {
-		Grid2D sinogramm = new Grid2D(numDetectorPixels,numProjections); // sino[0] = s und sino[1] = theta
+		Grid2D sinogramm = new Grid2D(numProjections,numDetectorPixels); // sino[1] = s und sino[0] = theta
 		sinogramm.setSpacing(spacingDetector);
 		sinogramm.setOrigin(-(sinogramm.getSize()[0]*spacingDetector[0]/2),-( sinogramm.getSize()[1]*spacingDetector[1]/2));
 		// Set sampling rate
 		//TODO
-		final double samplingStepSize = 0.5;
+		final double samplingStepSize = 0.3;
 		// create box around image
 		Box box = new Box((image.getSize()[0] * image.getSpacing()[0]), (image.getSize()[1] * image.getSpacing()[1]),
 				1);
@@ -90,7 +90,7 @@ public class ParallelBeam {
 					//System.out.println(sum);
 					
 				}
-				sinogramm.setAtIndex(j, i, sum); 
+				sinogramm.setAtIndex(i, j, sum); 
 				
 			}
 			
@@ -99,13 +99,18 @@ public class ParallelBeam {
 	}
 	
 	public static Grid2D backProject(Grid2D sino){
-		Grid2D image = new Grid2D(sino.getSize()[0],sino.getSize()[0]);
-		image.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[0]});
+		
+		if (sino.getSize()[0] < 180){
+			System.err.println("This is not a full scan.Please use at least 180°.");
+			return null;
+		}
+		Grid2D image = new Grid2D(sino.getSize()[1],sino.getSize()[1]);
+		image.setSpacing(new double []{sino.getSpacing()[1], sino.getSpacing()[1]});
 		image.setOrigin(-(image.getSize()[0]*image.getSpacing()[0]/2),-( image.getSize()[1]*image.getSpacing()[1]/2));
 		
-		for (int t = 0; t < sino.getSize()[1]; t++){
+		for (int t = 0; t < sino.getSize()[0]; t++){
 			// calc the actual theta values in deg
-			double theta = t*( 180/sino.getSize()[1]);
+			double theta = t*(sino.getSize()[0]/180);
 			double cosTheta = Math.cos(theta *(2*Math.PI/360));
 			double sinTheta = Math.sin(theta *(2*Math.PI/360));
 			for (int i = 0; i < image.getSize()[0]; i++){
@@ -113,8 +118,8 @@ public class ParallelBeam {
 					//pixels to worldcoordinates
 					double [] physIndex = (image.indexToPhysical(i, j));
 					double s = physIndex[1]*sinTheta + physIndex[0]*cosTheta;
-					double [] sinoIndex = sino.physicalToIndex(s, t);
-					float val = InterpolationOperators.interpolateLinear(sino, sinoIndex[0],t);
+					double [] sinoIndex = sino.physicalToIndex(t,s);
+					float val = InterpolationOperators.interpolateLinear(sino, t, sinoIndex[1]);
 					float pixelVal = image.getAtIndex(i, j)+ val;
 					image.setAtIndex(i, j, pixelVal);
 				}
@@ -127,9 +132,9 @@ public class ParallelBeam {
 		filtSino.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[1]});
 		filtSino.setOrigin(-(filtSino.getSize()[0]*filtSino.getSpacing()[0]/2),-( filtSino.getSize()[1]*filtSino.getSpacing()[1]/2));
 		// calculate frequency spacing
-		Grid1D ramp = new Grid1D(FFTUtil.getNextPowerOfTwo(sino.getSize()[0]));
+		Grid1D ramp = new Grid1D(FFTUtil.getNextPowerOfTwo(sino.getSize()[1]));
 		int k = ramp.getSize()[0];
-		double freqSpacing = 1/(sino.getSpacing()[0]*k);
+		double freqSpacing = 1/(sino.getSpacing()[1]*k);
 		for (int i = 0; i< k/2; i++){
 			ramp.setAtIndex(i, (float)Math.abs(2.0f*Math.PI*freqSpacing*i));
 			ramp.setAtIndex(k-i-1, (float)Math.abs(2.0f*Math.PI*freqSpacing*i));
@@ -137,19 +142,23 @@ public class ParallelBeam {
 		ramp.show();
 		Grid1DComplex complexRamp = new Grid1DComplex(ramp);
 		// FFT of one line of the sino
-		for(int i = 0; i < sino.getSize()[1]; i++){
-			Grid1DComplex complexRow = new Grid1DComplex(sino.getSubGrid(i));
-			complexRow.transformForward();
+		
+		for(int i = 0; i < sino.getSize()[0]; i++){
+			Grid1DComplex complexColumn = new Grid1DComplex(sino.getSize()[1]);
+			for(int j = 0; j < sino.getSize()[1]; j++){
+				complexColumn.setAtIndex(j, sino.getAtIndex(i, j));
+			}
+			complexColumn.transformForward();
 
 			// multiply with ramp filter
-			for(int j = 0 ; j < k; j++){
-				complexRow.multiplyAtIndex(j, complexRamp.getRealAtIndex(j), complexRamp.getImagAtIndex(j));
+			for(int j = 0 ; j < complexColumn.getSize()[0]; j++){
+				complexColumn.multiplyAtIndex(j, complexRamp.getRealAtIndex(j), complexRamp.getImagAtIndex(j));
 			}
 			
-			complexRow.transformInverse();
+			complexColumn.transformInverse();
 			// write filtered sinogramm into output image
-			for(int j = 0 ; j < k; j++){
-				filtSino.setAtIndex(j, i, complexRow.getRealAtIndex(j));
+			for(int j = 0 ; j < sino.getSize()[1]; j++){
+				filtSino.setAtIndex(i, j, complexColumn.getRealAtIndex(j));
 			}
 		}
 		
@@ -162,7 +171,7 @@ public class ParallelBeam {
 		filtSino.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[1]});
 		filtSino.setOrigin(-(filtSino.getSize()[0]*filtSino.getSpacing()[0]/2),-( filtSino.getSize()[1]*filtSino.getSpacing()[1]/2));
 		// calculate frequency spacing
-		Grid1D ramLak = new Grid1D(sino.getSize()[0]);
+		Grid1D ramLak = new Grid1D(sino.getSize()[1]);
 		Grid1DComplex complexRamLak = new Grid1DComplex(ramLak);
 		int k = complexRamLak.getSize()[0];
 		//double freqSpacing = 1/(sino.getSpacing()[0]*k);
@@ -183,20 +192,25 @@ public class ParallelBeam {
 		//Grid1DComplex complexRamLak = new Grid1DComplex(ramLak);
 		complexRamLak.transformForward();
 		complexRamLak.show();
+		
 		// FFT of one line of the sino
-		for(int i = 0; i < sino.getSize()[1]; i++){
-			Grid1DComplex complexRow = new Grid1DComplex(sino.getSubGrid(i));
-			complexRow.transformForward();
+		
+		for(int i = 0; i < sino.getSize()[0]; i++){
+			Grid1DComplex complexColumn = new Grid1DComplex(sino.getSize()[1]);
+			for(int j = 0; j < sino.getSize()[1]; j++){
+				complexColumn.setAtIndex(j, sino.getAtIndex(i, j));
+			}
+			complexColumn.transformForward();
 
 			// multiply with ramp filter
-			for(int j = 0 ; j < k; j++){
-				complexRow.multiplyAtIndex(j, complexRamLak.getRealAtIndex(j), complexRamLak.getImagAtIndex(j));
+			for(int j = 0 ; j < complexColumn.getSize()[0]; j++){
+				complexColumn.multiplyAtIndex(j, complexRamLak.getRealAtIndex(j), complexRamLak.getImagAtIndex(j));
 			}
 			
-			complexRow.transformInverse();
+			complexColumn.transformInverse();
 			// write filtered sinogramm into output image
-			for(int j = 0 ; j < k; j++){
-				filtSino.setAtIndex(j, i, complexRow.getRealAtIndex(j));
+			for(int j = 0 ; j < sino.getSize()[1]; j++){
+				filtSino.setAtIndex(i, j, complexColumn.getRealAtIndex(j));
 			}
 		}
 		
@@ -204,8 +218,8 @@ public class ParallelBeam {
 	return filtSino;	
 	}
 	public static Grid2D filteredBackprojection(Grid2D sino, String filterType){
-		Grid2D imOut = new Grid2D(sino.getSize()[0],sino.getSize()[0]);
-		imOut.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[0]});
+		Grid2D imOut = new Grid2D(sino.getSize()[0],sino.getSize()[1]);
+		imOut.setSpacing(new double []{sino.getSpacing()[0], sino.getSpacing()[1]});
 		imOut.setOrigin(-(imOut.getSize()[0]*imOut.getSpacing()[0]/2),-( imOut.getSize()[1]*sino.getSpacing()[1]/2));
 		switch(filterType){
 		case "ramp":
@@ -232,14 +246,17 @@ public class ParallelBeam {
 		//ParallelBeam p = new ParallelBeam();
 		phantom.show();
 		//Create Sinogramm of phantom
-		Grid2D sinogramm = createSinogram(phantom, 180, new double[] { 1.0, 1.0 }, 365);
+		Grid2D sinogramm = createSinogram(phantom, 180, new double[] { 1.0, 1.0 }, 366);
 		sinogramm.show("Sinogramm");
 		//perform backprojection without filtering
-		Grid2D backProj = backProject(sinogramm);
-		backProj.show("Back Projection");
+		//Grid2D backProj = backProject(sinogramm);
+		//backProj.show("Back Projection");
 		
-		//Grid2D rampFil = p.rampFilter(sinogramm);
-		//rampFil.show("Ramp Filt");
+		Grid2D rampFil = rampFilter(sinogramm);
+		rampFil.show("Ramp Filt");
+		
+		Grid2D ramlakFil = ramLakFilter(sinogramm);
+		ramlakFil.show("Ram Lak");
 		
 		//perform filteredBackprojection
 		Grid2D filtBackProj = filteredBackprojection(sinogramm, "ramp");

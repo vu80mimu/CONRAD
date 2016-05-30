@@ -21,7 +21,7 @@ public class FanBeam {
 		}
 		
 		
-		Grid2D fanogramm = new Grid2D(numDetectorPixels,numProjections); // sino[0] = s und sino[1] = Beta
+		Grid2D fanogramm = new Grid2D(numProjections,numDetectorPixels); // sino[1] = s und sino[0] = Beta
 		fanogramm.setSpacing(spacingDetector);
 		fanogramm.setOrigin(-(fanogramm.getSize()[0]*spacingDetector[0]/2),-( fanogramm.getSize()[1]*spacingDetector[1]/2));
 		// Set sampling rate
@@ -93,21 +93,59 @@ public class FanBeam {
 					//System.out.println(sum);
 					
 				}
-				fanogramm.setAtIndex(j, i, sum); 
+				fanogramm.setAtIndex(i,j, sum); 
 				
 			}
 			
 		}
 		return fanogramm;
 	}
+	
+	public static Grid2D rebinning(Grid2D fano, double incBeta,double dSI, double dSD){
+		Grid2D sinogramm = new Grid2D(fano.getSize()[0],fano.getSize()[1]); // sino[1] = s und sino[0] = Beta
+		sinogramm.setSpacing(fano.getSpacing()[0],fano.getSpacing()[1]);
+		sinogramm.setOrigin(-(sinogramm.getSize()[0]*sinogramm.getSpacing()[0]/2),-( sinogramm.getSize()[1]*sinogramm.getSpacing()[1]/2));
+		/* theta = gamma + beta
+		 * s = dSI sin(gamma)
+		 * tan(gamma) = t/ dSI + dSD
+		*/
+		for(int i = 0; i < sinogramm.getSize()[0]; i++){ //theta
+			for(int j = 0; j< sinogramm.getSize()[1]; j++){ // s
+				double[] physIndex = sinogramm.indexToPhysical(i, j); // physIndex[1] = s; physIndex[0] = theat
+				// gamma = sin^-1(s/DSI) 
+				double gamma = Math.asin((double)(physIndex[1]/dSI)); //in rad
+				// t = tan(gamma)* (dSI +dSD)
+				double t = Math.tan(gamma) * (dSI+dSD);
+				// beta = theta - gamma
+				double theta = physIndex[0]*180/sinogramm.getSize()[0]; // grad
+				gamma = gamma *360/(2 * Math.PI); // grad
+				double beta = theta - gamma; // in grad
+				double deltaBeta = beta/incBeta;
+				double [] index = fano.physicalToIndex(deltaBeta, t);
+				float val = InterpolationOperators.interpolateLinear(fano,index[0],index[1]);
+				
+				sinogramm.setAtIndex(i, j, val);
+			}
+		}
+		
+		return sinogramm;
+	}
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
 		new ImageJ();
 		CustPhantom phantom = new CustPhantom(200,300 , new double[] { 1.0, 1.0 });
-		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 600, 1.0, 180, 500,1000 );
+		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 600, 1.0, 160, 500,1000 );
 		phantom.show();
 		fano.show("Fanogramm");
+		
+		
+		Grid2D sino = rebinning(fano, 1.0, 500, 1000);
+		sino.show("Sinogramm");
+		
+		ParallelBeam p = new ParallelBeam();
+		Grid2D fbp = p.filteredBackprojection(sino, "ramLak");
+		fbp.show("Filtered Backproject RamLak");
 
 	}
 	
