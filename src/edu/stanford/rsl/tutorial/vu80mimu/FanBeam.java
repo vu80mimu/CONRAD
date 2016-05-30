@@ -130,19 +130,63 @@ public class FanBeam {
 		
 		return sinogramm;
 	}
+	public static Grid2D parkerWeighting(Grid2D fano, double incBeta, double dSI, double dSD, double maxGamma){
+		Grid2D parker = new Grid2D(fano.getSize()[0],fano.getSize()[1]); // sino[1] = s und sino[0] = Beta
+		parker.setSpacing(fano.getSpacing()[0],fano.getSpacing()[1]);
+		parker.setOrigin(-(parker.getSize()[0]*parker.getSpacing()[0]/2),-( parker.getSize()[1]*parker.getSpacing()[1]/2));
+		for(int i = 0; i< parker.getSize()[0];i++){//beta
+			double beta = i *incBeta; //grad
+			for(int j = 0; j < parker.getSize()[1];j++){ // t
+				double gamma = Math.atan((j*fano.getSpacing()[1])/(dSI + dSD)); // rad
+				gamma = (gamma*360)/(Math.PI * 2);	// grad			
+				if((beta >= (180+2*gamma)) && (beta <= (180 + 2*maxGamma))){ // upper triangle
+					double weight = (Math.PI/4)* ((Math.PI+2*maxGamma-beta)/(maxGamma - gamma)); 
+					parker.setAtIndex(i, j,(float) (weight*fano.getAtIndex(i, j)));
+				}else if((beta >= 0) && (beta <= (180 + 2*maxGamma))){
+					double weight = (Math.PI/4)* (beta/(maxGamma + gamma));
+					parker.setAtIndex(i, j,(float) (weight*fano.getAtIndex(i, j)));				
+				}else{
+					parker.setAtIndex(i, j, fano.getAtIndex(i, j));
+					
+				}
+				
+			}
+		}
+		
+		
+		
+		
+		return parker;
+	}
+	public static Grid2D shortScan(Grid2D image, double[] spacingDetector, int numDetectorPixels, double incBeta, double dSI, double dSD){
+		double tMax = (numDetectorPixels/2)* spacingDetector[0];
+		double gamma = Math.atan(tMax/(dSI + dSD))*360/(2 * Math.PI);
+		
+		double rotAngle = 180 + gamma ;
+		int numProjections =((int) (rotAngle/incBeta))+1; // casting rounds it to the smaller value
+		
+		Grid2D fano = createFanogram(image, spacingDetector, numDetectorPixels, incBeta,numProjections , 500,1000 );
+		Grid2D weightedSino = parkerWeighting(fano,incBeta, dSI, dSD,gamma );
+		Grid2D sino = rebinning(weightedSino, 1.0, 500, 1000);
+		
+		
+		return sino;
+	}
+	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
 		new ImageJ();
 		CustPhantom phantom = new CustPhantom(200,300 , new double[] { 1.0, 1.0 });
-		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 600, 1.0, 160, 500,1000 );
+		/*Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 600, 1.0, 200, 500,1000 );
 		phantom.show();
 		fano.show("Fanogramm");
 		
 		
 		Grid2D sino = rebinning(fano, 1.0, 500, 1000);
 		sino.show("Sinogramm");
-		
+		*/
+		Grid2D sino = shortScan(phantom, new double[] {1.0,1.0}, 600, 1.0,500,1000);
 		ParallelBeam p = new ParallelBeam();
 		Grid2D fbp = p.filteredBackprojection(sino, "ramLak");
 		fbp.show("Filtered Backproject RamLak");
