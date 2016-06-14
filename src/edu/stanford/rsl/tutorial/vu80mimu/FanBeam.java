@@ -47,7 +47,7 @@ public class FanBeam {
 				double t = j* spacingDetector[0] - (numDetectorPixels*spacingDetector[0])/2;
 				// define two points on the line through the 3D box
 				PointND p1 = new PointND(-sinBeta* dSI, cosBeta*dSI, 0.0d); // 
-				PointND midDetector = new PointND(sinBeta*(dSD - dSI), -cosBeta*(dSD -dSI));
+				PointND midDetector = new PointND(sinBeta*(dSD - dSI), -cosBeta*(dSD -dSI),0.0d);
 				
 				PointND p2 = new PointND(midDetector.getCoordinates()[0]+cosBeta*t, midDetector.getCoordinates()[1]+sinBeta*t, 0.0d);
 				// set up line equation
@@ -109,8 +109,8 @@ public class FanBeam {
 		 * s = dSI sin(gamma)
 		 * tan(gamma) = t/ dSI + dSD
 		*/
-		for(int i = 3; i < sinogramm.getSize()[0]; i++){ //theta
-			for(int j = 347; j< sinogramm.getSize()[1]; j++){ // s
+		for(int i = 0; i < sinogramm.getSize()[0]; i++){ //theta
+			for(int j = 0; j< sinogramm.getSize()[1]; j++){ // s
 				double[] physIndex = sinogramm.indexToPhysical(i, j); // physIndex[1] = s; physIndex[0] = theat
 				// gamma = sin^-1(s/DSI) 
 				double gamma = Math.asin((double)(physIndex[1]/dSI)); //in rad
@@ -123,14 +123,15 @@ public class FanBeam {
 				double beta = theta - gamma; // in grad
 				double gamma_n = gamma;
 				if (beta < 0){
-					gamma_n = -gamma;
-					beta = beta - 2*gamma+ 180;
-//					if(deltaBeta > 359){
-//						deltaBeta = 359; // clamp to 
-//					}
-//				}else if(deltaBeta > 359){
-//					deltaBeta = deltaBeta -360;
-				}
+					//gamma_n = -gamma;
+					//beta = beta - 2*gamma+ 180;
+					beta = beta +360;
+					if(beta > 359){
+						beta = 359; // clamp to 
+					}
+				}//else if(beta > 359){
+				//	beta = beta -360;
+				//}
 				double deltaBeta = beta/incBeta;
 				gamma_n = Math.toRadians(gamma_n);
 				double t = Math.tan(gamma_n) * (dSD);
@@ -193,12 +194,9 @@ public class FanBeam {
 		
 		new ImageJ();
 		CustPhantom phantom = new CustPhantom(200,300 , new double[] { 1.0, 1.0 });
-		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 200, 1.0, 360, 500,1000 );
+		Grid2D fano = createFanogram(phantom, new double[] {1.0,1.0}, 600, 1.0, 360, 500,1000 );
 		phantom.show();
 		fano.show("Fanogramm");
-		
-
-		
 		
 		
 		Grid2D sino = rebinning(fano, 1.0, 500, 1000);

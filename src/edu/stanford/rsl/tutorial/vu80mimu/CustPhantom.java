@@ -33,6 +33,12 @@ public class CustPhantom extends Grid2D{
 		this.setOrigin(-(this.getSize()[0]*spacing[0]/2), -(this.getSize()[1]*spacing[1]/2));
 
 	}
+	
+	
+	
+	
+	
+	
 	public void createEllipse(int a,int b,int centerX, int centerY, float value){
 
 		
