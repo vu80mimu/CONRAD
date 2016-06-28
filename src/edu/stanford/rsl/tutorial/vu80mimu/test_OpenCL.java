@@ -126,32 +126,25 @@ public static Grid2D backProjectGPU(Grid2D sino, int localWorkSize){
 		int globalWorkSize = OpenCLUtil.roundUp(localWorkSize, bufferImage.length); // sample in output space		
 		
 		
-		/*
+		CLCommandQueue queue = clDevice.createCommandQueue();
+		// memory transfer
+		queue.putWriteImage(sinoTexture, true).putWriteBuffer(clImageFloat,true).finish();
 		
-		for (int t = 0; t < sino.getSize()[0]; t++){
-			// calc the actual theta values in deg
-			double theta = t*(sino.getSize()[0]/180);
-			double cosTheta = Math.cos(theta *(2*Math.PI/360));
-			double sinTheta = Math.sin(theta *(2*Math.PI/360));
-			for (int i = 0; i < image.getSize()[0]; i++){
-				for(int j = 0; j < image.getSize()[1]; j++){
-					//pixels to worldcoordinates
-					double [] physIndex = (image.indexToPhysical(i, j));
-					double s = physIndex[1]*sinTheta + physIndex[0]*cosTheta;
-					double [] sinoIndex = sino.physicalToIndex(t,s);
-					float val = InterpolationOperators.interpolateLinear(sino, t, sinoIndex[1]);
-					float pixelVal = image.getAtIndex(i, j)+ val;
-					image.setAtIndex(i, j, pixelVal);
-				}
-			}
+		kernelFunction.putArg(image.getSize()[0]).putArg(image.getSize()[1])
+		.putArg(sino.getSize()[0]).putArg(sino.getSize()[1]).putArg(sinoTexture).putArg(clImageFloat)
+		.putArg((int)image.getOrigin()[0]).putArg((int)image.getOrigin()[1]).putArg((float) image.getSpacing()[0])
+		.putArg((float)image.getSpacing()[1]).putArg((int) sino.getOrigin()[1]).putArg((float) sino.getSpacing()[1]); // in addPhantomCl OpenCLGrid2D ??
+		
+		queue.put1DRangeKernel(kernelFunction, 0, globalWorkSize, localWorkSize)
+		.finish(); // fuehre kernel function aus
+		
+		queue.putReadBuffer(clImageFloat, true);
+		
+		for(int j = 0; j< image.getSize()[1]; j++){
+		for(int i = 0; i< image.getSize()[0]; i++){
+			image.setAtIndex(i, j, clImageFloat.getBuffer().get()); // buffer reads column wise
 		}
-		*/
-		
-		
-		
-		
-		
-		
+		}
 		
 		return image;
 	}
@@ -159,6 +152,7 @@ public static Grid2D backProjectGPU(Grid2D sino, int localWorkSize){
 	
 
 	public static void main(String[] args) {
+		/*
 		// TODO Auto-generated method stub
 		CustPhantom phantom = new CustPhantom(256,256,new double[]{1.0,1.0});
 		CLContext context = OpenCLUtil.getStaticContext();
@@ -189,14 +183,14 @@ public static Grid2D backProjectGPU(Grid2D sino, int localWorkSize){
 		phan.show();
 		
 		phantom.show();
-		
+		*/
 		
 		/* Aufgabe 3*/
 		
 		ParallelBeam pb = new ParallelBeam();
 		CustPhantom backprojphantom = new CustPhantom(200,300 , new double[] { 1.0, 1.0 });
 		//ParallelBeam p = new ParallelBeam();
-		phantom.show();
+		backprojphantom.show();
 		//Create Sinogramm of phantom
 		Grid2D sinogramm = pb.createSinogram(backprojphantom, 180, new double[] { 1.0, 1.0 }, 366);
 		sinogramm.show("Sinogramm");
